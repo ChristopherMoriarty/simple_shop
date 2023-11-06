@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  web:
+    build: .
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while ! nc -z db 5432; do
+          echo "Waiting for the database to start..."
+          sleep 1
+        done
+        echo 'Database started!';
+        cd ..
+        alembic upgrade head;
+        cd src
+        echo 'Migrations applied!';
+        python add_test_data.py;
+        echo 'Test data added';
+        uvicorn main:app --host 0.0.0.0 --port 8090
+    volumes:
+      - .:/app
+    ports:
+      - "8090:8090"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_PORT=5432
+
+volumes:
+  postgres_data:
